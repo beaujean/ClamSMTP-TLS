@@ -1,0 +1,17 @@
+K 25
+svn:wc:ra_dav:version-url
+V 43
+/svn/services/!svn/ver/683/clamsmtp/scripts
+END
+clamsmtpd.sh
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/svn/services/!svn/ver/683/clamsmtp/scripts/clamsmtpd.sh
+END
+virus_action.sh
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/svn/services/!svn/ver/683/clamsmtp/scripts/virus_action.sh
+END

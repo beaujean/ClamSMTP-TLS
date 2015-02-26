@@ -1,0 +1,71 @@
+K 25
+svn:wc:ra_dav:version-url
+V 43
+/svn/services/!svn/ver/1166/proxsmtp/common
+END
+stringx.c
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/svn/services/!svn/ver/1105/proxsmtp/common/stringx.c
+END
+smtppass.h
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/svn/services/!svn/ver/1166/proxsmtp/common/smtppass.h
+END
+usuals.h
+K 25
+svn:wc:ra_dav:version-url
+V 52
+/svn/services/!svn/ver/1105/proxsmtp/common/usuals.h
+END
+compat.c
+K 25
+svn:wc:ra_dav:version-url
+V 52
+/svn/services/!svn/ver/1105/proxsmtp/common/compat.c
+END
+stringx.h
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/svn/services/!svn/ver/1105/proxsmtp/common/stringx.h
+END
+sock_any.c
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/svn/services/!svn/ver/1105/proxsmtp/common/sock_any.c
+END
+compat.h
+K 25
+svn:wc:ra_dav:version-url
+V 52
+/svn/services/!svn/ver/1105/proxsmtp/common/compat.h
+END
+sppriv.h
+K 25
+svn:wc:ra_dav:version-url
+V 52
+/svn/services/!svn/ver/1105/proxsmtp/common/sppriv.h
+END
+smtppass.c
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/svn/services/!svn/ver/1166/proxsmtp/common/smtppass.c
+END
+spio.c
+K 25
+svn:wc:ra_dav:version-url
+V 50
+/svn/services/!svn/ver/1105/proxsmtp/common/spio.c
+END
+sock_any.h
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/svn/services/!svn/ver/1105/proxsmtp/common/sock_any.h
+END

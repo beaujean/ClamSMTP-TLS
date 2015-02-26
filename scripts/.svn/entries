@@ -1,0 +1,54 @@
+8
+
+dir
+1170
+http://dev.ws.local/svn/services/clamsmtp/scripts
+http://dev.ws.local/svn/services
+
+
+
+2005-01-15T22:52:43.000000Z
+643
+nate
+
+
+svn:special svn:externals svn:needs-lock
+
+
+
+
+
+
+
+
+
+
+
+37549a05-7cf3-0310-b41a-658052d0713c
+
+clamsmtpd.sh
+file
+
+
+
+
+2007-03-20T03:38:24.000000Z
+8bd04ca0a8f5205aa7793d881d50d021
+2005-01-15T22:52:43.000000Z
+643
+nate
+has-props
+
+virus_action.sh
+file
+
+
+
+
+2007-03-20T03:38:24.000000Z
+f94f6c68f2e165c7f87a5cc5a14268bb
+2004-11-20T05:59:45.000000Z
+636
+nate
+has-props
+
