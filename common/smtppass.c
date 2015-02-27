@@ -123,7 +123,6 @@ spthread_t;
 #define TO_CMD              "RCPT TO"
 #define DATA_CMD            "DATA"
 #define RSET_CMD            "RSET"
-#define STARTTLS_CMD        "STARTTLS"
 #define BDAT_CMD            "BDAT"
 #define XCLIENT_CMD         "XCLIENT"
 #define XFORWARD_CMD        "XFORWARD"
@@ -967,7 +966,7 @@ static int smtp_passthru(spctx_t* ctx)
              /* 
              * Enableing STARTTLS
              */
-            else if(is_first_word(C_LINE, STARTTLS_CMD, KL(STARTTLS_CMD)))
+            else if(is_first_word(C_LINE, ESMTP_TLS, KL(ESMTP_TLS)))
             {
 				if (ctx->client.tls == 0) {
 					if (g_state.tlscert && g_state.tlskey) {
@@ -1129,7 +1128,7 @@ static int smtp_passthru(spctx_t* ctx)
                     }
                     
                     if(is_first_word(p, ESMTP_PIPELINE, KL(ESMTP_PIPELINE)) ||
-                       /*is_first_word(p, ESMTP_TLS, KL(ESMTP_TLS)) ||*/
+                       is_first_word(p, ESMTP_TLS, KL(ESMTP_TLS)) ||
                        is_first_word(p, ESMTP_CHUNK, KL(ESMTP_CHUNK)) ||
                        is_first_word(p, ESMTP_BINARY, KL(ESMTP_BINARY)) ||
                        is_first_word(p, ESMTP_CHECK, KL(ESMTP_CHECK)) ||
