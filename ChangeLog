@@ -1,5 +1,5 @@
 1.11 [2015-02-26]
-  - Adding STARTTLS support [Aurélien Beaujean]
+  - Adding STARTTLS support [Aurelien Beaujean]
 
 1.10 [2007-06-30]
   - Make the XFOWARD HELO available as a environment variable in scripts. [Glenn Matthys]
