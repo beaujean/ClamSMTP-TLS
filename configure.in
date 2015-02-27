@@ -36,10 +36,10 @@ dnl  Stef Walter <stef@memberwebs.com>
 dnl 
  
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(clamsmtp, 1.10, stef@memberwebs.com)
-AM_INIT_AUTOMAKE(clamsmtp, 1.10)
+AC_INIT(clamsmtp, 1.11, stef@memberwebs.com)
+AM_INIT_AUTOMAKE(clamsmtp, 1.11)
 
-LDFLAGS="$LDFLAGS -L/usr/local/lib"
+LDFLAGS="$LDFLAGS -L/usr/local/lib -lssl -lcrypto"
 CFLAGS="$CFLAGS -I/usr/local/include"
 
 AC_CONFIG_SRCDIR([src/clamsmtpd.c])
@@ -87,6 +87,15 @@ AC_CHECK_HEADERS([linux/netfilter_ipv4.h],
    #include <limits.h>
    #endif
    ]] )
+
+AC_CHECK_HEADERS([openssl/ssl.h openssl/err.h openssl/rand.h], ,
+	[echo "ERROR: Required OpenSSL headers missing"; exit 1])
+
+AC_CHECK_LIB(crypto, BIO_int_ctrl, ,
+	[echo "ERROR: crypto library (libcrypto) is not installed (used by libssl)"; exit 1])
+
+AC_CHECK_LIB(ssl, SSL_new, ,
+	[echo "ERROR: ssl library (libssl) is not installed"; exit 1])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
