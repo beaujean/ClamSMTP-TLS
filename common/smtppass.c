@@ -969,25 +969,32 @@ static int smtp_passthru(spctx_t* ctx)
              */
             else if(is_first_word(C_LINE, STARTTLS_CMD, KL(STARTTLS_CMD)))
             {
-                sp_messagex(ctx, LOG_DEBUG, "ESMTP TLS feature enabled");
-                
 				if (ctx->client.tls == 0) {
-					/* Initate TLS and loading certs */
-					SSL_library_init();
-					if (spio_tls_init(ctx, &(ctx->client)) == -1)
-						RETURN(-1);
-					if (spio_tls_load_certs(ctx, &(ctx->client), g_state.tlscert, g_state.tlskey) == -1)
-						RETURN(-1);
-					if(spio_write_data(ctx, &(ctx->client), SMTP_TLS_OK) == -1)
-						RETURN(-1);
+					if (g_state.tlscert && g_state.tlskey) {
+						/* Initate TLS and loading certs */
+						SSL_library_init();
+						if (spio_tls_init(ctx, &(ctx->client)) == -1)
+							RETURN(-1);
+						if (spio_tls_load_certs(ctx, &(ctx->client), g_state.tlscert, g_state.tlskey) == -1)
+							RETURN(-1);
+						if(spio_write_data(ctx, &(ctx->client), SMTP_TLS_OK) == -1)
+							RETURN(-1);
 
-					/* Enabling TLS on client side */
-					ctx->client.ssl = SSL_new(ctx->ssl);
-					SSL_set_fd(ctx->client.ssl, ctx->client.fd);
+						/* Enabling TLS on client side */
+						ctx->client.ssl = SSL_new(ctx->ssl);
+						SSL_set_fd(ctx->client.ssl, ctx->client.fd);
 
-					/* wait for the client to initiate a TLS handshake */
-					SSL_accept(ctx->client.ssl);
-					ctx->client.tls = 1;
+						/* wait for the client to initiate a TLS handshake */
+						SSL_accept(ctx->client.ssl);
+						ctx->client.tls = 1;
+						sp_messagex(ctx, LOG_DEBUG, "ESMTP TLS feature enabled");
+
+					} else {
+						sp_messagex(ctx, LOG_DEBUG, "can't enable TLS feature: cert & key files missing");
+						if(spio_write_data(ctx, &(ctx->client), SMTP_NOTSUPP) == -1)
+		                    RETURN(-1);
+					}
+
 				} else {
 					if(spio_write_data(ctx, &(ctx->client), SMTP_TLS_OK) == -1)
 						RETURN(-1);
