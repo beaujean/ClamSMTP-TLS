@@ -54,6 +54,8 @@ typedef struct spstate
     const char* user;               /* User to run as */ 
     const char* pidfile;            /* The pid file for daemon */
     const char* header;             /* A header to include in the email */
+    const char* tlskey;             /* File name of the tls key */
+    const char* tlscert;            /* File name of the tls cert */
     
     struct sockaddr_any outaddr;    /* The outgoing address */
     const char* outname;

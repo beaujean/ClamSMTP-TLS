@@ -170,6 +170,8 @@ spthread_t;
 #define CFG_USER            "User"
 #define CFG_PIDFILE         "PidFile"
 #define CFG_XCLIENT         "XClient"
+#define CFG_TLSKEY          "TLSKey"
+#define CFG_TLSCERT         "TLSCert"
 
 /* -----------------------------------------------------------------------
  *  DEFAULT SETTINGS
@@ -2019,7 +2021,23 @@ int sp_parse_option(const char* name, const char* value)
         g_state.user = value;
         ret = 1;
     }
-    
+
+    else if(strcasecmp(CFG_TLSKEY, name) == 0)
+    {
+        if(strlen(value) == 0)
+            errx(2, "invalid setting: " CFG_TLSKEY);
+        g_state.user = value;
+        ret = 1;
+    }
+
+    else if(strcasecmp(CFG_TLSCERT, name) == 0)
+    {
+        if(strlen(value) == 0)
+            errx(2, "invalid setting: " CFG_TLSCERT);
+        g_state.user = value;
+        ret = 1;
+    }
+   
     else if(strcasecmp(CFG_PIDFILE, name) == 0)
     {
         if(g_state.pidfile != NULL)

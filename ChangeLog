@@ -1,5 +1,5 @@
-1.10-tls [2015-02-26]
-  - Adding STARTTLS support (Aurelien Beaujean)
+1.11 [2015-02-26]
+  - Adding STARTTLS support [Aurélien Beaujean]
 
 1.10 [2007-06-30]
   - Make the XFOWARD HELO available as a environment variable in scripts. [Glenn Matthys]
@@ -22,7 +22,7 @@
 
 1.6 [2005-10-21]
   - IMPORTANT: Removed support for listening on ports under < 1024
-    See: http://memberwebs.com/swalter/software/clamsmtp/faq.html#low-ports
+    See: http://memberwebs.com/stef/software/clamsmtp/faq.html#low-ports
   - Support embedded NULLs in email data.
   - Fix problems with not listening properly when in daemon mode
   - Fix warnings when compiled with gcc 4.0
