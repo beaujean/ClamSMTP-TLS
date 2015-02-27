@@ -986,7 +986,7 @@ static int smtp_passthru(spctx_t* ctx)
 						/* wait for the client to initiate a TLS handshake */
 						SSL_accept(ctx->client.ssl);
 						ctx->client.tls = 1;
-						sp_messagex(ctx, LOG_DEBUG, "ESMTP TLS feature enabled");
+						sp_messagex(ctx, LOG_INFO, "STARTTLS initiated from: %s", ctx->client.peername);
 
 					} else {
 						sp_messagex(ctx, LOG_DEBUG, "can't enable TLS feature: cert & key files missing");
