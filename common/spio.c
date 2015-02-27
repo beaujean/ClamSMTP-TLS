@@ -63,9 +63,6 @@
 #include "stringx.h"
 #include "sppriv.h"
 
-#include "openssl/ssl.h"
-#include "openssl/err.h"
-
 #define MAX_LOG_LINE    79
 #define GET_IO_NAME(io)  ((io)->name ? (io)->name : "???   ")
 #define HAS_EXTRA(io)   ((io)->_ln > 0)
@@ -645,7 +642,7 @@ void spio_read_junk(spctx_t* ctx, spio_t* io)
     fcntl(io->fd, F_SETFL, fcntl(io->fd, F_GETFL, 0) & ~O_NONBLOCK);
 }
 
-SSL_CTX* spio_init_tls (spctx_t* ctx, spio_t* io)
+int spio_tls_init (spctx_t* ctx, spio_t* io)
 {	SSL_METHOD const *method;
 	SSL_CTX *ssl;
 
@@ -656,30 +653,30 @@ SSL_CTX* spio_init_tls (spctx_t* ctx, spio_t* io)
 	if ( ssl == NULL )
 	{   
 		sp_message(ctx, LOG_ERR, "%s: can't init SSL context: %s", GET_IO_NAME(io), ERR_error_string(ERR_get_error(), NULL));
-		return;
+		return -1;
 	}
-	return ssl;
+	ctx->ssl = ssl;
 }
 
-int spio_load_certs (SSL_CTX* ssl, char* CertFile, char* KeyFile, spctx_t* ctx, spio_t* io)
+int spio_tls_load_certs (spctx_t* ctx, spio_t* io, char* CertFile, char* KeyFile)
 {
 	/* set the local certificate from CertFile */
-	if ( SSL_CTX_use_certificate_file(ssl, CertFile, SSL_FILETYPE_PEM) <= 0 )
+	if ( SSL_CTX_use_certificate_file(ctx->ssl, CertFile, SSL_FILETYPE_PEM) <= 0 )
 	{   
 		sp_message(ctx, LOG_ERR, "%s: can't load ssl cert file: %s", GET_IO_NAME(io), ERR_error_string(ERR_get_error(), NULL));
 		return -1;
 	}
 	/* set the private key from KeyFile (may be the same as CertFile) */
-	if ( SSL_CTX_use_PrivateKey_file(ssl, KeyFile, SSL_FILETYPE_PEM) <= 0 )
+	if ( SSL_CTX_use_PrivateKey_file(ctx->ssl, KeyFile, SSL_FILETYPE_PEM) <= 0 )
 	{   
-		ERR_print_errors_fp(stderr);
 		sp_message(ctx, LOG_ERR, "%s: can't load ssl key file: %s", GET_IO_NAME(io), ERR_error_string(ERR_get_error(), NULL));
 		return -1;
 	}
 	/* verify private key */
-	if ( !SSL_CTX_check_private_key(ssl) )
+	if ( !SSL_CTX_check_private_key(ctx->ssl) )
 	{   
 		sp_message(ctx, LOG_ERR, "%s: private key does not match the public cert: %s", GET_IO_NAME(io), ERR_error_string(ERR_get_error(), NULL));
 		return -1;
 	}
 }
+

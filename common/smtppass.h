@@ -39,6 +39,9 @@
 #ifndef __SMTPPASS_H__
 #define __SMTPPASS_H__
 
+#include "openssl/ssl.h"
+#include "openssl/err.h"
+
 /* Forward declarations */
 struct sockaddr_any;
 struct spctx;
@@ -134,6 +137,8 @@ typedef struct spctx
     char* recipients;               /* The email of the recipients */
     char* xforwardaddr;             /* The IP address proxied for */
     char* xforwardhelo;             /* The HELO/EHLO proxied for */
+
+	SSL_CTX *ssl;                   /* SSL context */
 
     int _crlf;                      /* Private data */
 }

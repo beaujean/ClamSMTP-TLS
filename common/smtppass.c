@@ -959,6 +959,12 @@ static int smtp_passthru(spctx_t* ctx)
                 sp_messagex(ctx, LOG_DEBUG, "ESMTP TLS feature enabled");
                 
 				/* Enabling TLS on client side */
+				SSL_library_init();
+				if (spio_tls_init(ctx, &(ctx->client)) == -1)
+					RETURN(-1);
+				if (spio_tls_load_certs(ctx, &(ctx->client), g_state.tlscert, g_state.tlskey) == -1)
+					RETURN(-1);
+
 				ctx->client.tls = 1;
 
                 if(spio_write_data(ctx, &(ctx->client), SMTP_TLS_OK) == -1)
@@ -2026,7 +2032,7 @@ int sp_parse_option(const char* name, const char* value)
     {
         if(strlen(value) == 0)
             errx(2, "invalid setting: " CFG_TLSKEY);
-        g_state.user = value;
+        g_state.tlskey = value;
         ret = 1;
     }
 
@@ -2034,7 +2040,7 @@ int sp_parse_option(const char* name, const char* value)
     {
         if(strlen(value) == 0)
             errx(2, "invalid setting: " CFG_TLSCERT);
-        g_state.user = value;
+        g_state.tlscert = value;
         ret = 1;
     }
    
