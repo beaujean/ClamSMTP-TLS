@@ -371,7 +371,15 @@ int read_raw(spctx_t* ctx, spio_t* io, int opts)
     {
         /* Read a block of data */
         ASSERT(io->fd != -1);
-        x = read(io->fd, at, sizeof(char) * len);
+		if (io->tls == 1)
+		{
+        	ASSERT(io->ssl != -1);
+			x = SSL_read(io->ssl, at, sizeof(char) * len);
+			if (x == -1)
+				sp_message(ctx, LOG_ERR, "%s: SSL_read said %d %s", GET_IO_NAME(io), x, ERR_error_string(ERR_get_error(), NULL));
+		}
+		else
+	        x = read(io->fd, at, sizeof(char) * len);
         
         if(x == -1)
         {
@@ -562,7 +570,10 @@ int spio_write_data_raw(spctx_t* ctx, spio_t* io, const unsigned char* buf, int 
     
     while(len > 0)
     {
-        r = write(io->fd, buf, len);
+		if (io->tls == 1)
+			r = SSL_write(io->ssl, buf, len);
+		else
+	        r = write(io->fd, buf, len);
 
         if(r > 0)
         {
@@ -623,7 +634,11 @@ void spio_read_junk(spctx_t* ctx, spio_t* io)
   
     for(;;)
     {
-        l = read(io->fd, buf, sizeof(buf) - 1);
+		if (io->tls == 1)
+			l = SSL_read(io->ssl, buf, sizeof(buf) - 1);
+		else
+        	l = read(io->fd, buf, sizeof(buf) - 1);
+
         if(l <= 0)
             break;
 

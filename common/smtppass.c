@@ -105,6 +105,7 @@ spthread_t;
 #define SMTP_HELO_RSP       "250 smtp.passthru" CRLF
 #define SMTP_EHLO_RSP       "250-smtp.passthru" CRLF
 #define SMTP_FEAT_RSP       "250 XFILTERED" CRLF
+#define SMTP_STARTTLS       "250-STARTTLS" CRLF
 #define SMTP_DELIMS         "\r\n\t :"
 #define SMTP_MULTI_DELIMS   " -"
 
@@ -672,8 +673,18 @@ static void cleanup_context(spctx_t* ctx)
 
 static void done_thread(spctx_t* ctx)
 {
+	int sd;
+
     ASSERT(ctx);
-     
+
+	if (ctx->ssl) {
+		if (ctx->client.ssl) {
+			sd = SSL_get_fd(ctx->client.ssl);
+			SSL_free(ctx->client.ssl);
+			close(sd);
+		}
+		SSL_CTX_free(ctx->ssl);
+	}
     spio_disconnect(ctx, &(ctx->client));
     spio_disconnect(ctx, &(ctx->server));
     
@@ -750,13 +761,15 @@ static int make_connections(spctx_t* ctx, int client)
     /* Create the server connection address */
     outaddr = &(g_state.outaddr); 
     outname = g_state.outname;
+
+	/* Not al TLS connexion for now... waiting STARTTLS */
+	ctx->client.tls = 0;
         
     /* For transparent proxying we have to discover the address to connect to */
     if(g_state.transparent)
     {
         memset(&addr, 0, sizeof(addr));
         SANY_LEN(addr) = sizeof(addr);
-		ctx->client.tls = 0;
         
 #ifdef LINUX_TRANSPARENT_PROXY
         if(getsockopt(ctx->client.fd, SOL_IP, SO_ORIGINAL_DST, &SANY_ADDR(addr), &SANY_LEN(addr)) == -1)
@@ -958,18 +971,28 @@ static int smtp_passthru(spctx_t* ctx)
             {
                 sp_messagex(ctx, LOG_DEBUG, "ESMTP TLS feature enabled");
                 
-				/* Enabling TLS on client side */
-				SSL_library_init();
-				if (spio_tls_init(ctx, &(ctx->client)) == -1)
-					RETURN(-1);
-				if (spio_tls_load_certs(ctx, &(ctx->client), g_state.tlscert, g_state.tlskey) == -1)
-					RETURN(-1);
+				if (ctx->client.tls == 0) {
+					/* Initate TLS and loading certs */
+					SSL_library_init();
+					if (spio_tls_init(ctx, &(ctx->client)) == -1)
+						RETURN(-1);
+					if (spio_tls_load_certs(ctx, &(ctx->client), g_state.tlscert, g_state.tlskey) == -1)
+						RETURN(-1);
+					if(spio_write_data(ctx, &(ctx->client), SMTP_TLS_OK) == -1)
+						RETURN(-1);
 
-				ctx->client.tls = 1;
+					/* Enabling TLS on client side */
+					ctx->client.ssl = SSL_new(ctx->ssl);
+					SSL_set_fd(ctx->client.ssl, ctx->client.fd);
 
-                if(spio_write_data(ctx, &(ctx->client), SMTP_TLS_OK) == -1)
-                    RETURN(-1);
- 
+					/* wait for the client to initiate a TLS handshake */
+					SSL_accept(ctx->client.ssl);
+					ctx->client.tls = 1;
+				} else {
+					if(spio_write_data(ctx, &(ctx->client), SMTP_TLS_OK) == -1)
+						RETURN(-1);
+				}
+
                 /* Command handled */
                 continue;
             }
@@ -1070,7 +1093,11 @@ static int smtp_passthru(spctx_t* ctx)
 
                     if(spio_write_data(ctx, &(ctx->client), 
                            cont ? SMTP_EHLO_RSP : SMTP_HELO_RSP) == -1)
-                        RETURN(-1);      
+                        RETURN(-1);
+					if (g_state.tlscert && g_state.tlskey)
+	                    if(spio_write_data(ctx, &(ctx->client), 
+    	                       cont ? SMTP_STARTTLS : SMTP_STARTTLS) == -1)
+        	                RETURN(-1);
 
                     /* A new email so cleanup */
                     cleanup_context(ctx);

@@ -73,6 +73,7 @@ typedef struct spio
     char peername[MAXPATHLEN];          /* Name of the peer on other side of socket */
     char localname[MAXPATHLEN];         /* Address where we accepted the connection */
     int tls;                            /* TLS mode */
+	SSL *ssl;                           /* TLS state */
     
     /* Internal use only */
     char line[SP_LINE_LENGTH];  
