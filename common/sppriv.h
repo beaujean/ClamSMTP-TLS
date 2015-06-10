@@ -56,6 +56,7 @@ typedef struct spstate
     const char* header;             /* A header to include in the email */
     const char* tlskey;             /* File name of the tls key */
     const char* tlscert;            /* File name of the tls cert */
+	SSL_CTX *ssl;                   /* SSL context */
     
     struct sockaddr_any outaddr;    /* The outgoing address */
     const char* outname;

@@ -80,6 +80,8 @@ typedef struct spthread
 }
 spthread_t;
 
+pthread_mutex_t ssl_mutex;
+
 /* -----------------------------------------------------------------------
  *  DATA
  */
@@ -676,14 +678,6 @@ static void done_thread(spctx_t* ctx)
 
     ASSERT(ctx);
 
-	if (ctx->ssl) {
-		if (ctx->client.ssl) {
-			sd = SSL_get_fd(ctx->client.ssl);
-			SSL_free(ctx->client.ssl);
-			close(sd);
-		}
-		SSL_CTX_free(ctx->ssl);
-	}
     spio_disconnect(ctx, &(ctx->client));
     spio_disconnect(ctx, &(ctx->server));
     
@@ -970,23 +964,39 @@ static int smtp_passthru(spctx_t* ctx)
             {
 				if (ctx->client.tls == 0) {
 					if (g_state.tlscert && g_state.tlskey) {
-						/* Initate TLS and loading certs */
-						SSL_library_init();
-						if (spio_tls_init(ctx, &(ctx->client)) == -1)
+						/* Enabling TLS on client side */
+						ctx->client.ssl = SSL_new(g_state.ssl);
+						if (ctx->client.ssl == NULL) {
+							sp_message(ctx, LOG_ERR, "%s: can't create new SSL structure: %s", ctx->client.peername, ERR_error_string(ERR_get_error(), NULL));
 							RETURN(-1);
-						if (spio_tls_load_certs(ctx, &(ctx->client), g_state.tlscert, g_state.tlskey) == -1)
+						}
+						if (SSL_set_fd(ctx->client.ssl, ctx->client.fd) < 1) {
+							sp_message(ctx, LOG_ERR, "%s: can't connect socket to SSL object: %s", ctx->client.peername, ERR_error_string(ERR_get_error(), NULL));
 							RETURN(-1);
+						}
 						if(spio_write_data(ctx, &(ctx->client), SMTP_TLS_OK) == -1)
 							RETURN(-1);
 
-						/* Enabling TLS on client side */
-						ctx->client.ssl = SSL_new(ctx->ssl);
-						SSL_set_fd(ctx->client.ssl, ctx->client.fd);
-
 						/* wait for the client to initiate a TLS handshake */
-						SSL_accept(ctx->client.ssl);
+						int ssl_err = -1;
+						while (ssl_err < 1) {
+
+							sp_lock(&ssl_mutex);
+							ssl_err = SSL_accept(ctx->client.ssl);
+							sp_unlock(&ssl_mutex);
+
+							if (ssl_err < 1) {
+								if (SSL_get_error(ctx->client.ssl, ssl_err) == SSL_ERROR_WANT_WRITE || SSL_get_error(ctx->client.ssl, ssl_err) == SSL_ERROR_WANT_READ) {
+
+								} else {
+									sp_message(ctx, LOG_ERR, "%s: can't initiate TLS/SSL handshake: %s", ctx->client.peername, ERR_error_string(ERR_get_error(), NULL));
+									RETURN(-1);
+								}
+							}
+						}
+
 						ctx->client.tls = 1;
-						sp_messagex(ctx, LOG_INFO, "STARTTLS initiated from: %s", ctx->client.peername);
+						sp_messagex(ctx, LOG_INFO, "STARTTLS version=%s cipher=%s bits=%d initiated from: %s", SSL_get_cipher_version(ctx->client.ssl), SSL_get_cipher(ctx->client.ssl), SSL_get_cipher_bits(ctx->client.ssl, NULL), ctx->client.peername);
 
 					} else {
 						sp_messagex(ctx, LOG_DEBUG, "can't enable TLS feature: cert & key files missing");

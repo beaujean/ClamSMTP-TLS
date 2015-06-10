@@ -67,6 +67,16 @@
 #define GET_IO_NAME(io)  ((io)->name ? (io)->name : "???   ")
 #define HAS_EXTRA(io)   ((io)->_ln > 0)
 
+#ifndef TEMP_FAILURE_RETRY
+#define TEMP_FAILURE_RETRY(expression) \
+	(                                                                          \
+	  ({ long int __result;                                                    \
+	    do __result = (long int) (expression);                                 \
+	    while (__result == -1L && errno == EINTR);                             \
+	    __result; }))
+#endif
+
+
 static void close_raw(int* fd)
 {
     ASSERT(fd);
@@ -197,6 +207,12 @@ void spio_disconnect(spctx_t* ctx, spio_t* io)
     
     if(spio_valid(io))
     {
+		if (io->ssl) {
+			SSL_shutdown(io->ssl);
+			SSL_free(io->ssl);
+			io->ssl = NULL;
+		}
+
         close_raw(&(io->fd));
         sp_messagex(ctx, LOG_DEBUG, "%s connection closed", GET_IO_NAME(io));
     }
@@ -374,9 +390,40 @@ int read_raw(spctx_t* ctx, spio_t* io, int opts)
 		if (io->tls == 1)
 		{
         	ASSERT(io->ssl != -1);
-			x = SSL_read(io->ssl, at, sizeof(char) * len);
-			if (x == -1)
-				sp_message(ctx, LOG_ERR, "%s: SSL_read said %d %s", GET_IO_NAME(io), x, ERR_error_string(ERR_get_error(), NULL));
+
+			int ssl_err = -1;
+			while (ssl_err < 0) {
+
+				SSL_pending(io->ssl);
+				ssl_err = SSL_read(io->ssl, at, sizeof(char) * len);
+
+				if (ssl_err < 1) {
+					fd_set set;
+					struct timeval timeout;
+
+					/* Initialize the file descriptor set. */
+					FD_ZERO (&set);
+					FD_SET (io->fd, &set);
+
+					/* Initialize the timeout data structure. */
+					timeout.tv_sec = 5;
+					timeout.tv_usec = 0;
+
+					/* select returns 0 if timeout, 1 if input available, -1 if error. */
+					TEMP_FAILURE_RETRY (select (FD_SETSIZE, &set, NULL, NULL, &timeout));
+				}
+
+				if (ssl_err < 1) {
+					if (SSL_get_error(ctx->client.ssl, ssl_err) == SSL_ERROR_WANT_READ) {
+						x = ssl_err;
+					} else {
+						sp_message(ctx, LOG_ERR, "%s: SSL_read (raw) said err:%d get:%d string:%s", ctx->client.peername, ssl_err, SSL_get_error(ctx->client.ssl, ssl_err), ERR_error_string(SSL_get_error(ctx->client.ssl, ssl_err), NULL));
+						x = ssl_err;
+						return -1;
+					}
+				}
+				else x = ssl_err;
+			}
 		}
 		else
 	        x = read(io->fd, at, sizeof(char) * len);
@@ -570,10 +617,43 @@ int spio_write_data_raw(spctx_t* ctx, spio_t* io, const unsigned char* buf, int 
     
     while(len > 0)
     {
-		if (io->tls == 1)
-			r = SSL_write(io->ssl, buf, len);
+		if (io->tls == 1) {
+
+			int ssl_err = -1;
+			while (ssl_err < 1) {
+
+				ssl_err = SSL_write(io->ssl, buf, len);
+
+				if (ssl_err < 1)
+				{
+					fd_set set;
+					struct timeval timeout;
+
+					/* Initialize the file descriptor set. */
+					FD_ZERO (&set);
+					FD_SET (io->fd, &set);
+
+					/* Initialize the timeout data structure. */
+					timeout.tv_sec = 5;
+					timeout.tv_usec = 0;
+
+					/* select returns 0 if timeout, 1 if input available, -1 if error. */
+					TEMP_FAILURE_RETRY (select (FD_SETSIZE, &set, NULL, NULL, &timeout));
+				}
+
+				if (ssl_err < 1) {
+					if (SSL_get_error(ctx->client.ssl, ssl_err) == SSL_ERROR_WANT_WRITE || SSL_get_error(ctx->client.ssl, ssl_err) == SSL_ERROR_WANT_READ) {
+						r = ssl_err;
+					} else {
+						sp_message(ctx, LOG_ERR, "%s: SSL_write (raw) said err:%d get:%d string:%s", ctx->client.peername, ssl_err, SSL_get_error(ctx->client.ssl, ssl_err), ERR_error_string(SSL_get_error(ctx->client.ssl, ssl_err), NULL));
+						r = ssl_err;
+						break;
+					}
+				} else r = ssl_err;
+			}
+		}
 		else
-	        r = write(io->fd, buf, len);
+    	    r = write(io->fd, buf, len);
 
         if(r > 0)
         {
@@ -634,8 +714,42 @@ void spio_read_junk(spctx_t* ctx, spio_t* io)
   
     for(;;)
     {
-		if (io->tls == 1)
-			l = SSL_read(io->ssl, buf, sizeof(buf) - 1);
+		if (io->tls == 1) {
+
+			int ssl_err = -1;
+			while (ssl_err < 0) {
+
+				SSL_pending(io->ssl);
+				ssl_err = SSL_read(io->ssl, buf, sizeof(buf) - 1);
+
+				if (ssl_err < 1) {
+					fd_set set;
+					struct timeval timeout;
+
+					/* Initialize the file descriptor set. */
+					FD_ZERO (&set);
+					FD_SET (io->fd, &set);
+
+					/* Initialize the timeout data structure. */
+					timeout.tv_sec = 5;
+					timeout.tv_usec = 0;
+
+					/* select returns 0 if timeout, 1 if input available, -1 if error. */
+					TEMP_FAILURE_RETRY (select (FD_SETSIZE, &set, NULL, NULL, &timeout));
+				}
+
+				if (ssl_err < 1) {
+					if (SSL_get_error(ctx->client.ssl, ssl_err) == SSL_ERROR_WANT_READ) {
+						l = ssl_err;
+					} else {
+						sp_message(ctx, LOG_ERR, "%s: SSL_read (raw) said err:%d get:%d string:%s", ctx->client.peername, ssl_err, SSL_get_error(ctx->client.ssl, ssl_err), ERR_error_string(SSL_get_error(ctx->client.ssl, ssl_err), NULL));
+						l = ssl_err;
+						return -1;
+					}
+				}
+				else l = ssl_err;
+			}
+		}
 		else
         	l = read(io->fd, buf, sizeof(buf) - 1);
 
@@ -657,40 +771,46 @@ void spio_read_junk(spctx_t* ctx, spio_t* io)
     fcntl(io->fd, F_SETFL, fcntl(io->fd, F_GETFL, 0) & ~O_NONBLOCK);
 }
 
-int spio_tls_init (spctx_t* ctx, spio_t* io)
+int spio_tls_init (spctx_t* ctx)
 {	SSL_METHOD const *method;
 	SSL_CTX *ssl;
 
-	OpenSSL_add_all_algorithms();	/* load & register all cryptos, etc. */
-	SSL_load_error_strings();		/* load all error messages */
-	method = TLSv1_server_method();	/* create new TLSv1 server-method instance */
-	ssl = SSL_CTX_new(method);		/* create new context from method */
+	SSL_library_init();
+	OpenSSL_add_all_algorithms();   /* load & register all cryptos, etc. */
+	OpenSSL_add_all_ciphers();
+	OpenSSL_add_all_digests();
+	SSL_load_error_strings();       /* load all error messages */
+	//method = TLSv1_server_method(); /* create new TLSv1 server-method instance */
+	method = SSLv23_server_method(); /* create new SSLv3, TLSv1, TLSv1.1 and TLSv1.2 server-method instance */
+	ssl = SSL_CTX_new(method);      /* create new context from method */
 	if ( ssl == NULL )
-	{   
-		sp_message(ctx, LOG_ERR, "%s: can't init SSL context: %s", GET_IO_NAME(io), ERR_error_string(ERR_get_error(), NULL));
-		return -1;
+	{
+	sp_message(NULL, LOG_ERR, "can't init SSL context: %s", ERR_error_string(ERR_get_error(), NULL));
+	return -1;
 	}
-	ctx->ssl = ssl;
+	SSL_CTX_set_options(ssl, SSL_OP_NO_SSLv3); /* we do not want SSLv3 */
+	SSL_CTX_set_cipher_list(ssl, "TLSv1:TLSv1.2");
+	g_state.ssl = ssl;
 }
 
-int spio_tls_load_certs (spctx_t* ctx, spio_t* io, char* CertFile, char* KeyFile)
+int spio_tls_load_certs (spctx_t* ctx, char* CertFile, char* KeyFile)
 {
 	/* set the local certificate from CertFile */
-	if ( SSL_CTX_use_certificate_file(ctx->ssl, CertFile, SSL_FILETYPE_PEM) <= 0 )
+	if ( SSL_CTX_use_certificate_file(g_state.ssl, CertFile, SSL_FILETYPE_PEM) <= 0 )
 	{   
-		sp_message(ctx, LOG_ERR, "%s: can't load ssl cert file: %s", GET_IO_NAME(io), ERR_error_string(ERR_get_error(), NULL));
+		sp_message(ctx, LOG_ERR, "can't load ssl cert file: %s", ERR_error_string(ERR_get_error(), NULL));
 		return -1;
 	}
 	/* set the private key from KeyFile (may be the same as CertFile) */
-	if ( SSL_CTX_use_PrivateKey_file(ctx->ssl, KeyFile, SSL_FILETYPE_PEM) <= 0 )
+	if ( SSL_CTX_use_PrivateKey_file(g_state.ssl, KeyFile, SSL_FILETYPE_PEM) <= 0 )
 	{   
-		sp_message(ctx, LOG_ERR, "%s: can't load ssl key file: %s", GET_IO_NAME(io), ERR_error_string(ERR_get_error(), NULL));
+		sp_message(ctx, LOG_ERR, "can't load ssl key file: %s", ERR_error_string(ERR_get_error(), NULL));
 		return -1;
 	}
 	/* verify private key */
-	if ( !SSL_CTX_check_private_key(ctx->ssl) )
+	if ( !SSL_CTX_check_private_key(g_state.ssl) )
 	{   
-		sp_message(ctx, LOG_ERR, "%s: private key does not match the public cert: %s", GET_IO_NAME(io), ERR_error_string(ERR_get_error(), NULL));
+		sp_message(ctx, LOG_ERR, "private key does not match the public cert: %s", ERR_error_string(ERR_get_error(), NULL));
 		return -1;
 	}
 }
